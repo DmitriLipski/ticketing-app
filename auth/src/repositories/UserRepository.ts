@@ -1,35 +1,24 @@
 import { Service } from 'typedi';
-import { User } from '../models/User';
+import { User, UserModelService } from '../models';
 
 @Service()
 class UserRepository {
-	private users: User[] = [
-		{
-			id: 'bfccd1b38422094d',
-			name: 'Bob',
-			email: 'bob@mail.com',
-			password: '123456',
-		},
-		{
-			id: 'bfccd1b38422094f',
-			name: 'Rob',
-			email: 'rob@mail.com',
-			password: '123456',
-		},
-		{
-			id: 'bfccd1b38422094k',
-			name: 'Sam',
-			email: 'sam@mail.com',
-			password: '123456',
-		},
-	];
+	userModel;
 
-	async getAllUsers(): Promise<User[]> {
-		return Promise.resolve(this.users);
+	constructor(private readonly userModelService: UserModelService) {
+		this.userModel = this.userModelService.getUserModel();
+	}
+	async getAllUsers(): Promise<User[] | Error> {
+		try {
+			return await this.userModel.find();
+		} catch (error) {
+			return new Error('Something went wrong');
+		}
 	}
 
-	async addUser(user: User): Promise<User> {
-		this.users.push(user);
+	async addUser(attr: User): Promise<User> {
+		const user = this.userModel.build(attr);
+		await user.save();
 		return Promise.resolve(user);
 	}
 }

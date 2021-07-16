@@ -3,7 +3,7 @@ import { randomBytes } from 'crypto';
 import { Service } from 'typedi';
 
 import { UserService, LoggerService, ResponseService } from '../services';
-import { User } from '../models/User';
+import { User } from '../models';
 
 import {
 	ErrorResponseMessages,

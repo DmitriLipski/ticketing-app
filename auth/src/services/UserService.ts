@@ -1,5 +1,5 @@
 import { Service } from 'typedi';
-import { User } from '../models/User';
+import { User } from '../models';
 import { UserRepository } from '../repositories/UserRepository';
 import { ValidationService } from './common/ValidationService';
 import { InvalidPropertyError } from './common/errors';
@@ -24,7 +24,6 @@ class UserService {
 
 	validateUser(userData: User): User {
 		const {
-			id,
 			name = this.errorService.requiredParam('name'),
 			email = this.errorService.requiredParam('email'),
 			password = this.errorService.requiredParam('password'),
@@ -34,7 +33,6 @@ class UserService {
 		this.validateUserPassword(password as string);
 
 		return {
-			id,
 			name,
 			email,
 			password,
