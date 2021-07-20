@@ -1,3 +1,5 @@
+export type Identifier = string | number;
+
 //Http
 import { SerializeErrorsReturnType } from './services/common/errors';
 

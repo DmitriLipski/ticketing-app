@@ -4,6 +4,10 @@ import chalk from 'chalk';
 import app from './app';
 
 const main = () => {
+	if (!process.env.JWT_KEY) {
+		throw new Error('JWT_KEY must be defined!');
+	}
+
 	const server = http.createServer(app);
 
 	const port = process.env.PORT || 4001;

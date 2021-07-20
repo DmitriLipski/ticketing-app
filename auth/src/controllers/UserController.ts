@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { randomBytes } from 'crypto';
 import { Service } from 'typedi';
+import jwt from 'jsonwebtoken';
 
 import { UserService, LoggerService, ResponseService } from '../services';
 import { User } from '../models';
@@ -10,6 +11,7 @@ import {
 	HandleRequestResultType,
 	HttpMethods,
 	HttpStatusCode,
+	Identifier,
 } from '../types';
 import {
 	InvalidPropertyError,
@@ -58,12 +60,36 @@ class UserController {
 		const httpRequest = this.adaptRequest(_req);
 
 		return httpRequest.method === HttpMethods.POST
-			? this.handleResponse<User[]>(_req, res, this.addUser(httpRequest))
-			: this.handleResponse<User[]>(
+			? this.handleResponse<User>(
+					_req,
+					res,
+					this.addUser(httpRequest).then(response => {
+						if (response.data) {
+							const user = response.data as User & { _id: Identifier };
+							const userJwt = this.generateJWT(user);
+
+							_req.session = {
+								jwt: userJwt,
+							};
+						}
+						return response;
+					}),
+			  )
+			: this.handleResponse<User>(
 					_req,
 					res,
 					this.makeUnsupportedMethodError(httpRequest.method),
 			  );
+	}
+
+	generateJWT(user: User & { _id: Identifier }): string {
+		return jwt.sign(
+			{
+				id: user._id,
+				email: user.email,
+			},
+			process.env.JWT_KEY!,
+		);
 	}
 
 	protected async handleResponse<T>(
