@@ -4,6 +4,7 @@ import { UserRepository } from '../repositories/UserRepository';
 import { ValidationService } from './common/ValidationService';
 import { InvalidPropertyError } from './common/errors';
 import { ErrorService } from './common/ErrorService';
+import { UserViewType } from '../views';
 
 @Service()
 class UserService {
@@ -12,11 +13,11 @@ class UserService {
 		private readonly validationService: ValidationService,
 		private readonly errorService: ErrorService,
 	) {}
-	async getAllUsers(): Promise<User[] | Error> {
+	async getAllUsers(): Promise<UserViewType[] | Error> {
 		return await this.userRepository.getAllUsers();
 	}
 
-	async addUser(user: User): Promise<User> {
+	async addUser(user: User): Promise<UserViewType> {
 		const validUser = this.validateUser(user);
 
 		return await this.userRepository.addUser(validUser);

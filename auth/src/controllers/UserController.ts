@@ -11,12 +11,12 @@ import {
 	HandleRequestResultType,
 	HttpMethods,
 	HttpStatusCode,
-	Identifier,
 } from '../types';
 import {
 	InvalidPropertyError,
 	MethodNotAllowedError,
 } from '../services/common/errors';
+import { UserViewType } from '../views';
 
 type HttpRequestType<T> = {
 	path: string;
@@ -48,8 +48,8 @@ class UserController {
 		const httpRequest = this.adaptRequest(_req);
 
 		return httpRequest.method === HttpMethods.GET
-			? this.handleResponse<User[]>(_req, res, this.getAllUsers())
-			: this.handleResponse<User[]>(
+			? this.handleResponse<UserViewType[]>(_req, res, this.getAllUsers())
+			: this.handleResponse<UserViewType[]>(
 					_req,
 					res,
 					this.makeUnsupportedMethodError(httpRequest.method),
@@ -60,12 +60,12 @@ class UserController {
 		const httpRequest = this.adaptRequest(_req);
 
 		return httpRequest.method === HttpMethods.POST
-			? this.handleResponse<User>(
+			? this.handleResponse<UserViewType>(
 					_req,
 					res,
 					this.addUser(httpRequest).then(response => {
 						if (response.data) {
-							const user = response.data as User & { _id: Identifier };
+							const user = response.data as UserViewType;
 							const userJwt = this.generateJWT(user);
 
 							_req.session = {
@@ -75,17 +75,17 @@ class UserController {
 						return response;
 					}),
 			  )
-			: this.handleResponse<User>(
+			: this.handleResponse<UserViewType>(
 					_req,
 					res,
 					this.makeUnsupportedMethodError(httpRequest.method),
 			  );
 	}
 
-	generateJWT(user: User & { _id: Identifier }): string {
+	generateJWT(user: UserViewType): string {
 		return jwt.sign(
 			{
-				id: user._id,
+				id: user.id,
 				email: user.email,
 			},
 			process.env.JWT_KEY!,
@@ -123,11 +123,11 @@ class UserController {
 	}
 
 	private async getAllUsers(): Promise<
-		HandleRequestResultType<User[] | unknown>
+		HandleRequestResultType<UserViewType[] | unknown>
 	> {
 		try {
-			const result = (await this.userService.getAllUsers()) as User[];
-			return this.responseService.makeHttpOKResponse<User[]>(result);
+			const result = (await this.userService.getAllUsers()) as UserViewType[];
+			return this.responseService.makeHttpOKResponse<UserViewType[]>(result);
 		} catch (error: unknown) {
 			return this.responseService.makeHttpError(error);
 		}
@@ -150,7 +150,7 @@ class UserController {
 			const user = { id, name, email, password };
 			const result = await this.userService.addUser(user);
 
-			return this.responseService.makeHttpOKResponse<User>(result);
+			return this.responseService.makeHttpOKResponse<UserViewType>(result);
 		} catch (error: unknown) {
 			return this.responseService.makeHttpError(error);
 		}
