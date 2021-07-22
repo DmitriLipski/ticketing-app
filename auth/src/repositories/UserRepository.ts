@@ -1,29 +1,25 @@
 import { Service } from 'typedi';
-import { User, UserModelService } from '../models';
+import { User, UserDoc, UserModelService } from '../models';
 import { BadRequestError } from '../services/common/errors';
-import { UserView, UserViewType } from '../views';
+import { UserCredentialsType } from '../services';
 
 @Service()
 class UserRepository {
 	userModel;
 
-	constructor(
-		private readonly userModelService: UserModelService,
-		private readonly userView: UserView,
-	) {
+	constructor(private readonly userModelService: UserModelService) {
 		this.userModel = this.userModelService.getUserModel();
 	}
 
-	async getAllUsers(): Promise<UserViewType[] | Error> {
+	async getAllUsers(): Promise<UserDoc[] | Error> {
 		try {
-			const users = await this.userModel.find();
-			return users.map(user => this.userView.getUserView(user));
+			return await this.userModel.find();
 		} catch (error) {
 			return new Error('Something went wrong');
 		}
 	}
 
-	async addUser(attr: User): Promise<UserViewType> {
+	async addUser(attr: User): Promise<UserDoc> {
 		const existingUser = await this.userModel.findOne({ email: attr.email });
 
 		if (existingUser) {
@@ -32,7 +28,17 @@ class UserRepository {
 
 		const user = this.userModel.build(attr);
 		await user.save();
-		return Promise.resolve(this.userView.getUserView(user));
+		return user;
+	}
+
+	async getUser(attr: UserCredentialsType): Promise<UserDoc> {
+		const existingUser = await this.userModel.findOne({ email: attr.email });
+
+		if (!existingUser) {
+			throw new BadRequestError('Invalid credentials');
+		}
+
+		return existingUser;
 	}
 }
 

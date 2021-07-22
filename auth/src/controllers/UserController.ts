@@ -1,10 +1,8 @@
 import { Request, Response } from 'express';
-import { randomBytes } from 'crypto';
 import { Service } from 'typedi';
 import jwt from 'jsonwebtoken';
-
 import { UserService, LoggerService, ResponseService } from '../services';
-import { User } from '../models';
+import { User, UserDoc } from '../models';
 
 import {
 	ErrorResponseMessages,
@@ -16,7 +14,7 @@ import {
 	InvalidPropertyError,
 	MethodNotAllowedError,
 } from '../services/common/errors';
-import { UserViewType } from '../views';
+import { UserView, UserViewType } from '../views';
 
 type HttpRequestType<T> = {
 	path: string;
@@ -32,6 +30,7 @@ class UserController {
 		private readonly userService: UserService,
 		private readonly logger: LoggerService,
 		private readonly responseService: ResponseService,
+		private readonly userViewService: UserView,
 	) {}
 
 	protected adaptRequest(_req: Request): HttpRequestType<User> {
@@ -65,7 +64,7 @@ class UserController {
 					res,
 					this.addUser(httpRequest).then(response => {
 						if (response.data) {
-							const user = response.data as UserViewType;
+							const user = response.data as UserDoc;
 							const userJwt = this.generateJWT(user);
 
 							_req.session = {
@@ -82,7 +81,33 @@ class UserController {
 			  );
 	}
 
-	generateJWT(user: UserViewType): string {
+	async handleSignInRequest(_req: Request, res: Response): Promise<Response> {
+		const httpRequest = this.adaptRequest(_req);
+
+		return httpRequest.method === HttpMethods.POST
+			? this.handleResponse<UserViewType>(
+					_req,
+					res,
+					this.signInUser(httpRequest).then(response => {
+						if (response.data) {
+							const user = response.data as UserDoc;
+							const userJwt = this.generateJWT(user);
+
+							_req.session = {
+								jwt: userJwt,
+							};
+						}
+						return response;
+					}),
+			  )
+			: this.handleResponse<UserViewType>(
+					_req,
+					res,
+					this.makeUnsupportedMethodError(httpRequest.method),
+			  );
+	}
+
+	protected generateJWT(user: UserDoc): string {
 		return jwt.sign(
 			{
 				id: user.id,
@@ -126,8 +151,34 @@ class UserController {
 		HandleRequestResultType<UserViewType[] | unknown>
 	> {
 		try {
-			const result = (await this.userService.getAllUsers()) as UserViewType[];
-			return this.responseService.makeHttpOKResponse<UserViewType[]>(result);
+			const users = (await this.userService.getAllUsers()) as UserDoc[];
+			return this.responseService.makeHttpOKResponse<UserViewType[]>(
+				users.map(user => this.userViewService.getUserView(user)),
+			);
+		} catch (error: unknown) {
+			return this.responseService.makeHttpError(error);
+		}
+	}
+
+	private async signInUser(
+		httpRequest: HttpRequestType<User>,
+	): Promise<HandleRequestResultType<UserViewType | unknown>> {
+		//TODO:
+		if (!httpRequest.body) {
+			return this.responseService.makeHttpError(
+				new InvalidPropertyError('Bad request. No POST body.'),
+			);
+		}
+
+		const { email, password } = httpRequest.body;
+
+		try {
+			const credentials = { email, password };
+			const result = await this.userService.signInUser(credentials);
+
+			return this.responseService.makeHttpOKResponse<UserViewType>(
+				this.userViewService.getUserView(result),
+			);
 		} catch (error: unknown) {
 			return this.responseService.makeHttpError(error);
 		}
@@ -135,7 +186,8 @@ class UserController {
 
 	private async addUser(
 		httpRequest: HttpRequestType<User>,
-	): Promise<HandleRequestResultType<User | unknown>> {
+	): Promise<HandleRequestResultType<UserViewType | unknown>> {
+		//TODO:
 		if (!httpRequest.body) {
 			return this.responseService.makeHttpError(
 				new InvalidPropertyError('Bad request. No POST body.'),
@@ -144,13 +196,13 @@ class UserController {
 
 		const { name, email, password } = httpRequest.body;
 
-		const id = randomBytes(8).toString('hex');
-
 		try {
-			const user = { id, name, email, password };
+			const user = { name, email, password };
 			const result = await this.userService.addUser(user);
 
-			return this.responseService.makeHttpOKResponse<UserViewType>(result);
+			return this.responseService.makeHttpOKResponse<UserViewType>(
+				this.userViewService.getUserView(result),
+			);
 		} catch (error: unknown) {
 			return this.responseService.makeHttpError(error);
 		}

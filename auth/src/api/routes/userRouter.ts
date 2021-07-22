@@ -14,4 +14,9 @@ router.all('/api/users/sign-up', (req: Request, res: Response) => {
 	return userController.handleSignUpRequest(req, res);
 });
 
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+router.all('/api/users/sign-in', (req: Request, res: Response) => {
+	return userController.handleSignInRequest(req, res);
+});
+
 export { router as userRouter };

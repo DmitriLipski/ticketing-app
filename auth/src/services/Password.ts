@@ -6,14 +6,14 @@ const scryptAsync = promisify(scrypt);
 
 @Service()
 export class Password {
-	static async toHash(password: string): Promise<string> {
+	async toHash(password: string): Promise<string> {
 		const salt = randomBytes(8).toString('hex');
 		const buf = (await scryptAsync(password, salt, 64)) as Buffer;
 
 		return `${buf.toString('hex')}.${salt}`;
 	}
 
-	static async compare(
+	async compare(
 		storedPassword: string,
 		suppliedPassword: string,
 	): Promise<boolean> {

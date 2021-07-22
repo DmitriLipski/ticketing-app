@@ -1,5 +1,5 @@
 import mongoose, { Schema } from 'mongoose';
-import { Password } from '../services';
+// import { Password } from '../services';
 import { Service } from 'typedi';
 
 // An interface that describes the properties
@@ -45,14 +45,6 @@ export class UserModelService {
 				type: String,
 				required: true,
 			},
-		});
-
-		this.userSchema.pre('save', async function (done) {
-			if (this.isModified('password')) {
-				const hashed = await Password.toHash(this.get('password'));
-				this.set('password', hashed);
-			}
-			done();
 		});
 
 		this.userSchema.statics.build = (attrs: UserAttrs) => {
