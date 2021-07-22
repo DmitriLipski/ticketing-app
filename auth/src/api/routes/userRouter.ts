@@ -19,4 +19,14 @@ router.all('/api/users/sign-in', (req: Request, res: Response) => {
 	return userController.handleSignInRequest(req, res);
 });
 
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+router.all('/api/users/current-user', (req: Request, res: Response) => {
+	return userController.handleCurrentUserRequest(req, res);
+});
+
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+router.all('/api/users/sign-out', (req: Request, res: Response) => {
+	return userController.handleSignOutUserRequest(req, res);
+});
+
 export { router as userRouter };

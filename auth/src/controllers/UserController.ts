@@ -24,6 +24,10 @@ type HttpRequestType<T> = {
 	body?: T;
 };
 
+type ReturnCurrentUserType = {
+	currentUser: UserViewType | null;
+};
+
 @Service()
 class UserController {
 	constructor(
@@ -107,14 +111,57 @@ class UserController {
 			  );
 	}
 
+	async handleCurrentUserRequest(
+		_req: Request,
+		res: Response,
+	): Promise<Response> {
+		const httpRequest = this.adaptRequest(_req);
+
+		return httpRequest.method === HttpMethods.GET
+			? this.handleResponse<UserViewType>(
+					_req,
+					res,
+					Promise.resolve(this.getCurrentUser(_req)),
+			  )
+			: this.handleResponse<UserViewType>(
+					_req,
+					res,
+					this.makeUnsupportedMethodError(httpRequest.method),
+			  );
+	}
+
+	async handleSignOutUserRequest(
+		_req: Request,
+		res: Response,
+	): Promise<Response> {
+		const httpRequest = this.adaptRequest(_req);
+
+		return httpRequest.method === HttpMethods.POST
+			? this.handleResponse<UserViewType[]>(
+					_req,
+					res,
+					Promise.resolve(this.signOutUser(_req)),
+			  )
+			: this.handleResponse<UserViewType[]>(
+					_req,
+					res,
+					this.makeUnsupportedMethodError(httpRequest.method),
+			  );
+	}
+
 	protected generateJWT(user: UserDoc): string {
 		return jwt.sign(
 			{
 				id: user.id,
 				email: user.email,
+				name: user.name,
 			},
 			process.env.JWT_KEY!,
 		);
+	}
+
+	protected verifyJWT(_req: Request): UserDoc {
+		return jwt.verify(_req.session?.jwt, process.env.JWT_KEY!) as UserDoc;
 	}
 
 	protected async handleResponse<T>(
@@ -206,6 +253,35 @@ class UserController {
 		} catch (error: unknown) {
 			return this.responseService.makeHttpError(error);
 		}
+	}
+
+	private getCurrentUser(
+		_req: Request,
+	): HandleRequestResultType<ReturnCurrentUserType | unknown> {
+		//TODO: Replace with 401 error
+		if (!_req.session?.jwt) {
+			return this.responseService.makeHttpOKResponse<{ currentUser: null }>({
+				currentUser: null,
+			});
+		}
+
+		try {
+			const payload = this.verifyJWT(_req);
+			return this.responseService.makeHttpOKResponse<ReturnCurrentUserType>({
+				currentUser: this.userViewService.getUserView(payload),
+			});
+		} catch (err) {
+			return this.responseService.makeHttpOKResponse<{ currentUser: null }>({
+				currentUser: null,
+			});
+		}
+	}
+
+	private signOutUser(
+		_req: Request,
+	): HandleRequestResultType<Record<string, unknown> | unknown> {
+		_req.session = null;
+		return this.responseService.makeHttpOKResponse<Record<string, unknown>>({});
 	}
 }
 
