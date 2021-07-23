@@ -1,20 +1,10 @@
 import { Request, Response } from 'express';
 import { Service } from 'typedi';
 import jwt from 'jsonwebtoken';
-import { UserService, LoggerService, ResponseService } from '../services';
+import { UserService, ResponseService } from '../services';
 import { User, UserDoc } from '../models';
 
-import {
-	ErrorResponseMessages,
-	HandleRequestResultType,
-	HttpMethods,
-	HttpStatusCode,
-} from '../types';
-import {
-	InvalidPropertyError,
-	MethodNotAllowedError,
-	UnauthorizedError,
-} from '../services/common/errors';
+import { HandleRequestResultType, HttpMethods } from '../types';
 import { UserView, UserViewType } from '../views';
 
 type HttpRequestType<T> = {
@@ -33,7 +23,6 @@ type ReturnCurrentUserType = {
 class UserController {
 	constructor(
 		private readonly userService: UserService,
-		private readonly logger: LoggerService,
 		private readonly responseService: ResponseService,
 		private readonly userViewService: UserView,
 	) {}
@@ -48,122 +37,154 @@ class UserController {
 		};
 	}
 
-	async handleGetUsersRequest(_req: Request, res: Response): Promise<Response> {
+	async handleGetAllUsers(
+		_req: Request,
+		res: Response,
+	): Promise<Response | boolean> {
+		const validationError = this.validateGetRequest(_req, res);
+
+		if (validationError) return Promise.resolve(validationError);
+
+		return this.responseService.handleResponse<UserViewType[]>(
+			_req,
+			res,
+			this.getAllUsers(),
+		);
+	}
+
+	async handleSignUp(
+		_req: Request,
+		res: Response,
+	): Promise<Response | boolean> {
+		const httpRequest = this.adaptRequest(_req);
+		const validationError = this.validatePostRequest(_req, res, httpRequest);
+
+		if (validationError) return Promise.resolve(validationError);
+
+		return this.responseService.handleResponse<UserViewType>(
+			_req,
+			res,
+			this.addUser(httpRequest).then(response => {
+				if (response.data) {
+					const user = response.data as UserDoc;
+					const userJwt = this.generateJWT(user);
+
+					_req.session = {
+						jwt: userJwt,
+					};
+				}
+				return response;
+			}),
+		);
+	}
+
+	async handleSignIn(
+		_req: Request,
+		res: Response,
+	): Promise<Response | boolean> {
+		const httpRequest = this.adaptRequest(_req);
+		const validationError = this.validatePostRequest(_req, res, httpRequest);
+
+		if (validationError) return Promise.resolve(validationError);
+
+		return this.responseService.handleResponse<UserViewType>(
+			_req,
+			res,
+			this.signInUser(httpRequest).then(response => {
+				if (response.data) {
+					const user = response.data as UserDoc;
+					const userJwt = this.generateJWT(user);
+
+					_req.session = {
+						jwt: userJwt,
+					};
+				}
+				return response;
+			}),
+		);
+	}
+
+	async handleGetCurrentUser(
+		_req: Request,
+		res: Response,
+	): Promise<Response | boolean> {
+		const validationError = this.validateGetRequest(_req, res);
+
+		if (validationError) return Promise.resolve(validationError);
+
+		return this.responseService.handleResponse<UserViewType>(
+			_req,
+			res,
+			Promise.resolve(this.getCurrentUser(_req)),
+		);
+	}
+
+	async handleSignOut(_req: Request, res: Response): Promise<Response> {
 		const httpRequest = this.adaptRequest(_req);
 
-		if (!_req.session?.jwt) {
-			return this.handleResponse<UserViewType[]>(
+		if (httpRequest.method !== HttpMethods.POST) {
+			return this.responseService.handleResponse(
 				_req,
 				res,
-				this.makeAuthorizationError(),
+				this.responseService.makeUnsupportedMethodError(httpRequest.method),
 			);
 		}
 
-		return httpRequest.method === HttpMethods.GET
-			? this.handleResponse<UserViewType[]>(_req, res, this.getAllUsers())
-			: this.handleResponse<UserViewType[]>(
-					_req,
-					res,
-					this.makeUnsupportedMethodError(httpRequest.method),
-			  );
+		return this.responseService.handleResponse<UserViewType[]>(
+			_req,
+			res,
+			Promise.resolve(this.signOutUser(_req)),
+		);
 	}
 
-	async handleSignUpRequest(_req: Request, res: Response): Promise<Response> {
+	validateGetRequest(_req: Request, res: Response): boolean {
 		const httpRequest = this.adaptRequest(_req);
 
-		return httpRequest.method === HttpMethods.POST
-			? this.handleResponse<UserViewType>(
-					_req,
-					res,
-					this.addUser(httpRequest).then(response => {
-						if (response.data) {
-							const user = response.data as UserDoc;
-							const userJwt = this.generateJWT(user);
-
-							_req.session = {
-								jwt: userJwt,
-							};
-						}
-						return response;
-					}),
-			  )
-			: this.handleResponse<UserViewType>(
-					_req,
-					res,
-					this.makeUnsupportedMethodError(httpRequest.method),
-			  );
-	}
-
-	async handleSignInRequest(_req: Request, res: Response): Promise<Response> {
-		const httpRequest = this.adaptRequest(_req);
-
-		return httpRequest.method === HttpMethods.POST
-			? this.handleResponse<UserViewType>(
-					_req,
-					res,
-					this.signInUser(httpRequest).then(response => {
-						if (response.data) {
-							const user = response.data as UserDoc;
-							const userJwt = this.generateJWT(user);
-
-							_req.session = {
-								jwt: userJwt,
-							};
-						}
-						return response;
-					}),
-			  )
-			: this.handleResponse<UserViewType>(
-					_req,
-					res,
-					this.makeUnsupportedMethodError(httpRequest.method),
-			  );
-	}
-
-	async handleCurrentUserRequest(
-		_req: Request,
-		res: Response,
-	): Promise<Response> {
-		const httpRequest = this.adaptRequest(_req);
-
-		if (!_req.session?.jwt) {
-			return this.handleResponse<UserViewType[]>(
+		if (httpRequest.method !== HttpMethods.GET) {
+			void this.responseService.handleResponse(
 				_req,
 				res,
-				this.makeAuthorizationError(),
+				this.responseService.makeUnsupportedMethodError(httpRequest.method),
 			);
+			return true;
 		}
 
-		return httpRequest.method === HttpMethods.GET
-			? this.handleResponse<UserViewType>(
-					_req,
-					res,
-					Promise.resolve(this.getCurrentUser(_req)),
-			  )
-			: this.handleResponse<UserViewType>(
-					_req,
-					res,
-					this.makeUnsupportedMethodError(httpRequest.method),
-			  );
+		if (!_req.session?.jwt) {
+			void this.responseService.handleResponse<UserViewType[]>(
+				_req,
+				res,
+				this.responseService.makeAuthorizationError(),
+			);
+			return true;
+		}
+
+		return false;
 	}
 
-	async handleSignOutUserRequest(
+	validatePostRequest(
 		_req: Request,
 		res: Response,
-	): Promise<Response> {
-		const httpRequest = this.adaptRequest(_req);
+		httpRequest: HttpRequestType<User>,
+	): boolean {
+		if (httpRequest.method !== HttpMethods.POST) {
+			void this.responseService.handleResponse(
+				_req,
+				res,
+				this.responseService.makeUnsupportedMethodError(httpRequest.method),
+			);
+			return true;
+		}
 
-		return httpRequest.method === HttpMethods.POST
-			? this.handleResponse<UserViewType[]>(
-					_req,
-					res,
-					Promise.resolve(this.signOutUser(_req)),
-			  )
-			: this.handleResponse<UserViewType[]>(
-					_req,
-					res,
-					this.makeUnsupportedMethodError(httpRequest.method),
-			  );
+		if (Object.keys(httpRequest.body || {}).length === 0) {
+			void this.responseService.handleResponse(
+				_req,
+				res,
+				this.responseService.makeEmptyBodyError(),
+			);
+			return true;
+		}
+
+		return false;
 	}
 
 	protected generateJWT(user: UserDoc): string {
@@ -179,50 +200,6 @@ class UserController {
 
 	protected verifyJWT(_req: Request): UserDoc {
 		return jwt.verify(_req.session?.jwt, process.env.JWT_KEY!) as UserDoc;
-	}
-
-	protected async handleResponse<T>(
-		_req: Request,
-		res: Response,
-		callback: Promise<HandleRequestResultType<T | unknown>>,
-	): Promise<Response> {
-		return callback
-			.then(({ headers, statusCode, data, errorMessage }) => {
-				return res
-					.set(headers)
-					.status(statusCode)
-					.send(errorMessage ? errorMessage : data);
-			})
-			.catch((error: Error) => {
-				this.logger.logToConsole(error.message);
-				return res
-					.status(HttpStatusCode.INTERNAL_SERVER_ERROR)
-					.json([{ message: ErrorResponseMessages.INTERNAL_SERVER_ERROR }]);
-			});
-	}
-
-	protected makeAuthorizationError(): Promise<HandleRequestResultType> {
-		return Promise.resolve(
-			this.responseService.makeHttpError(new UnauthorizedError()),
-		);
-	}
-
-	protected makeUnsupportedMethodError(
-		method: string,
-	): Promise<HandleRequestResultType> {
-		return Promise.resolve(
-			this.responseService.makeHttpError(
-				new MethodNotAllowedError(`${method} method not allowed.`),
-			),
-		);
-	}
-
-	private checkRequestBody(body?: User): HandleRequestResultType | void {
-		if (!body) {
-			return this.responseService.makeHttpError(
-				new InvalidPropertyError('Bad request. No POST body.'),
-			);
-		}
 	}
 
 	private async getAllUsers(): Promise<
@@ -241,8 +218,6 @@ class UserController {
 	private async signInUser(
 		httpRequest: HttpRequestType<User>,
 	): Promise<HandleRequestResultType<UserViewType | unknown>> {
-		this.checkRequestBody(httpRequest.body);
-
 		const { email, password } = httpRequest.body as User;
 
 		try {
@@ -260,8 +235,6 @@ class UserController {
 	private async addUser(
 		httpRequest: HttpRequestType<User>,
 	): Promise<HandleRequestResultType<UserViewType | unknown>> {
-		this.checkRequestBody(httpRequest.body);
-
 		const { name, email, password } = httpRequest.body as User;
 
 		try {

@@ -3,7 +3,6 @@ import { User, UserDoc } from '../models';
 import { UserRepository } from '../repositories/UserRepository';
 import { ValidationService } from './common/ValidationService';
 import { BadRequestError, InvalidPropertyError } from './common/errors';
-import { ErrorService } from './common/ErrorService';
 import { Password } from './Password';
 
 export type UserCredentialsType = Pick<User, 'email' | 'password'>;
@@ -13,7 +12,6 @@ class UserService {
 	constructor(
 		private readonly userRepository: UserRepository,
 		private readonly validationService: ValidationService,
-		private readonly errorService: ErrorService,
 		private readonly passwordService: Password,
 	) {}
 	async getAllUsers(): Promise<UserDoc[] | Error> {
@@ -49,13 +47,12 @@ class UserService {
 		return Promise.resolve(user);
 	}
 
-	//TODO: move to validation service
 	validateUserCredentials(
 		credentials: UserCredentialsType,
 	): UserCredentialsType {
 		const {
-			email = this.errorService.requiredParam('email'),
-			password = this.errorService.requiredParam('password'),
+			email = this.validationService.requiredParam('email'),
+			password = this.validationService.requiredParam('password'),
 		} = credentials;
 
 		this.validateUserEmail(email as string);
@@ -68,9 +65,9 @@ class UserService {
 
 	validateNewUser(userData: User): User {
 		const {
-			name = this.errorService.requiredParam('name'),
-			email = this.errorService.requiredParam('email'),
-			password = this.errorService.requiredParam('password'),
+			name = this.validationService.requiredParam('name'),
+			email = this.validationService.requiredParam('email'),
+			password = this.validationService.requiredParam('password'),
 		} = userData;
 
 		this.validateUserEmail(email as string);
