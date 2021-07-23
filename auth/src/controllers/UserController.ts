@@ -13,6 +13,7 @@ import {
 import {
 	InvalidPropertyError,
 	MethodNotAllowedError,
+	UnauthorizedError,
 } from '../services/common/errors';
 import { UserView, UserViewType } from '../views';
 
@@ -49,6 +50,14 @@ class UserController {
 
 	async handleGetUsersRequest(_req: Request, res: Response): Promise<Response> {
 		const httpRequest = this.adaptRequest(_req);
+
+		if (!_req.session?.jwt) {
+			return this.handleResponse<UserViewType[]>(
+				_req,
+				res,
+				this.makeAuthorizationError(),
+			);
+		}
 
 		return httpRequest.method === HttpMethods.GET
 			? this.handleResponse<UserViewType[]>(_req, res, this.getAllUsers())
@@ -117,6 +126,14 @@ class UserController {
 	): Promise<Response> {
 		const httpRequest = this.adaptRequest(_req);
 
+		if (!_req.session?.jwt) {
+			return this.handleResponse<UserViewType[]>(
+				_req,
+				res,
+				this.makeAuthorizationError(),
+			);
+		}
+
 		return httpRequest.method === HttpMethods.GET
 			? this.handleResponse<UserViewType>(
 					_req,
@@ -184,6 +201,12 @@ class UserController {
 			});
 	}
 
+	protected makeAuthorizationError(): Promise<HandleRequestResultType> {
+		return Promise.resolve(
+			this.responseService.makeHttpError(new UnauthorizedError()),
+		);
+	}
+
 	protected makeUnsupportedMethodError(
 		method: string,
 	): Promise<HandleRequestResultType> {
@@ -192,6 +215,14 @@ class UserController {
 				new MethodNotAllowedError(`${method} method not allowed.`),
 			),
 		);
+	}
+
+	private checkRequestBody(body?: User): HandleRequestResultType | void {
+		if (!body) {
+			return this.responseService.makeHttpError(
+				new InvalidPropertyError('Bad request. No POST body.'),
+			);
+		}
 	}
 
 	private async getAllUsers(): Promise<
@@ -210,14 +241,9 @@ class UserController {
 	private async signInUser(
 		httpRequest: HttpRequestType<User>,
 	): Promise<HandleRequestResultType<UserViewType | unknown>> {
-		//TODO:
-		if (!httpRequest.body) {
-			return this.responseService.makeHttpError(
-				new InvalidPropertyError('Bad request. No POST body.'),
-			);
-		}
+		this.checkRequestBody(httpRequest.body);
 
-		const { email, password } = httpRequest.body;
+		const { email, password } = httpRequest.body as User;
 
 		try {
 			const credentials = { email, password };
@@ -234,14 +260,9 @@ class UserController {
 	private async addUser(
 		httpRequest: HttpRequestType<User>,
 	): Promise<HandleRequestResultType<UserViewType | unknown>> {
-		//TODO:
-		if (!httpRequest.body) {
-			return this.responseService.makeHttpError(
-				new InvalidPropertyError('Bad request. No POST body.'),
-			);
-		}
+		this.checkRequestBody(httpRequest.body);
 
-		const { name, email, password } = httpRequest.body;
+		const { name, email, password } = httpRequest.body as User;
 
 		try {
 			const user = { name, email, password };
@@ -258,22 +279,13 @@ class UserController {
 	private getCurrentUser(
 		_req: Request,
 	): HandleRequestResultType<ReturnCurrentUserType | unknown> {
-		//TODO: Replace with 401 error
-		if (!_req.session?.jwt) {
-			return this.responseService.makeHttpOKResponse<{ currentUser: null }>({
-				currentUser: null,
-			});
-		}
-
 		try {
 			const payload = this.verifyJWT(_req);
 			return this.responseService.makeHttpOKResponse<ReturnCurrentUserType>({
 				currentUser: this.userViewService.getUserView(payload),
 			});
 		} catch (err) {
-			return this.responseService.makeHttpOKResponse<{ currentUser: null }>({
-				currentUser: null,
-			});
+			return this.responseService.makeHttpError(err);
 		}
 	}
 

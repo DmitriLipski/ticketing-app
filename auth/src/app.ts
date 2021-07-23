@@ -5,13 +5,13 @@ import cookieSession from 'cookie-session';
 import './db/mongoose';
 
 const app = express();
-app.set('trust proxy', true); //TODO :Check
+app.set('trust proxy', process.env.MODE !== 'dev');
 
 app.use(bodyParser.json());
 app.use(
 	cookieSession({
 		signed: false,
-		secure: true,
+		secure: process.env.MODE !== 'dev',
 	}),
 );
 
