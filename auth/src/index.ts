@@ -1,7 +1,8 @@
 import 'reflect-metadata';
 import http from 'http';
 import chalk from 'chalk';
-import app from './app';
+import { app } from './app';
+import './db/mongoose';
 
 const main = () => {
 	if (!process.env.JWT_KEY) {

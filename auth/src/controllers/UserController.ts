@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
 import { Service } from 'typedi';
 import jwt from 'jsonwebtoken';
-import { UserService, ResponseService } from '../services';
+import { ResponseService, UserService } from '../services';
 import { User, UserDoc } from '../models';
 
-import { HandleRequestResultType, HttpMethods } from '../types';
+import { HandleRequestResultType, HttpMethods, HttpStatusCode } from '../types';
 import { UserView, UserViewType } from '../views';
 
 type HttpRequestType<T> = {
@@ -243,6 +243,7 @@ class UserController {
 
 			return this.responseService.makeHttpOKResponse<UserViewType>(
 				this.userViewService.getUserView(result),
+				HttpStatusCode.CREATED,
 			);
 		} catch (error: unknown) {
 			return this.responseService.makeHttpError(error);

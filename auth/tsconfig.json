@@ -2,7 +2,7 @@
 	"compilerOptions": {
 		"module": "commonjs",
 		"lib": ["dom", "es6", "es2017", "esnext.asynciterable"],
-		"types": ["reflect-metadata", "node"],
+		"types": ["reflect-metadata", "node", "jest"],
 		"skipLibCheck": true,
 		"removeComments": true,
 		"esModuleInterop": true,

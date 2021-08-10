@@ -37,12 +37,15 @@ class ResponseService {
 			});
 	}
 
-	makeHttpOKResponse<T>(data: T): HandleRequestResultType<T> {
+	makeHttpOKResponse<T>(
+		data: T,
+		statusCode = HttpStatusCode.OK,
+	): HandleRequestResultType<T> {
 		return {
 			headers: {
 				'Content-Type': 'application/json',
 			},
-			statusCode: HttpStatusCode.OK,
+			statusCode: statusCode,
 			data,
 		};
 	}

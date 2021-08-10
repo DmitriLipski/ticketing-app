@@ -1,5 +1,5 @@
 {
-	"name": "crypto-tracker",
+	"name": "ticketing-app",
 	"version": "1.0.0",
 	"main": "index.js",
 	"repository": "",
@@ -13,34 +13,48 @@
 		"prettier": "prettier --ignore-path .gitignore \"**/*.+(ts|js|json)\"",
 		"format": "npm run prettier -- --write",
 		"check-format": "npm run prettier -- --list-different",
-		"validate": "npm run check-format && npm run lint"
+		"validate": "npm run check-format && npm run lint",
+		"test": "jest --watchAll --no-cache"
+	},
+	"jest": {
+		"preset": "ts-jest",
+		"testEnvironment": "node",
+		"setupFilesAfterEnv": [
+			"./src/test/setup.ts"
+		]
 	},
 	"dependencies": {
 		"axios": "0.21.1",
 		"chalk": "4.1.1",
 		"concurrently": "6.1.0",
 		"cookie-session": "1.4.0",
+		"env-cmd": "10.1.0",
 		"express": "4.17.1",
 		"jsonwebtoken": "8.5.1",
 		"mongoose": "5.13.2",
 		"reflect-metadata": "0.1.13",
 		"ts-node": "9.1.1",
+		"ts-node-dev": "1.1.8",
 		"typedi": "0.10.0",
 		"typescript": "4.2.4"
 	},
 	"devDependencies": {
 		"@types/cookie-session": "2.0.43",
 		"@types/express": "4.17.11",
+		"@types/jest": "26.0.24",
 		"@types/jsonwebtoken": "8.5.4",
 		"@types/node": "15.6.0",
+		"@types/supertest": "2.0.11",
 		"@typescript-eslint/eslint-plugin": "4.24.0",
 		"@typescript-eslint/parser": "4.24.0",
-		"env-cmd": "10.1.0",
 		"eslint": "7.26.0",
 		"eslint-plugin-prettier": "3.4.0",
 		"husky": "4",
+		"jest": "27.0.6",
 		"lint-staged": "11.0.0",
+		"mongodb-memory-server": "7.3.6",
 		"prettier": "2.3.0",
-		"ts-node-dev": "1.1.6"
+		"supertest": "6.1.4",
+		"ts-jest": "27.0.4"
 	}
 }
